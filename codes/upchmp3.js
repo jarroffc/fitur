@@ -1,3 +1,7 @@
+/*
+ Wm? jarr jangan hps plis
+ https://whatsapp.com/channel/0029VbAbEkb5Ejy7jjjG7p3H
+*/
 const fs = require("fs");
 const path = require("path");
 const ffmpeg = require("fluent-ffmpeg");

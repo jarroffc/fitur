@@ -9,11 +9,25 @@
 import fetch from 'node-fetch'
 const ch = "120363420360528990@newsletter" // ID Saluran / Channel tujuan
 
-const handler = async (m, sock, { args, isBan, isOwner, command }) => {
+function maskNumber(num = '') {
+  if (!num) return 'Tidak diketahui'
+  if (num.length <= 6) return num.replace(/.(?=.$)/g, '*')
+  const start = num.slice(0, 5)
+  const end = num.slice(-4)
+  return `${start}****${end}`
+}
+
+function maskName(name = '') {
+  if (!name) return 'Tanpa Nama'
+  if (name.length <= 2) return name[0] + '*'
+  return name[0] + '*'.repeat(Math.min(3, name.length - 1)) + name.slice(-1)
+}
+
+const handler = async (m, sock, { args, isBan, isOwner, command, prefix }) => {
   try {
-  
     if (isBan) return await sock.sendMessage(m.chat, { react: { text: '❌', key: m.key } })
-    if (!m.isGroup) return m.reply("Jika ingin pakai fitur ini join:\nhttps://chat.whatsapp.com/LGbxmgibQ9A4hjqPfsjMQg?mode=wwt")
+
+    if (!m.isGroup) return m.reply(mess.group)
     const text = (args || []).join(' ').trim()
     if (!text) {
       return await sock.sendMessage(m.chat, { text: `Gunakan: ${prefix + command} <text>` }, { quoted: m })
@@ -36,19 +50,53 @@ const handler = async (m, sock, { args, isBan, isOwner, command }) => {
     const buffer = Buffer.from(arrayBuffer)
 
     const senderName = m.pushName || 'Tanpa Nama'
-    const senderNum = m.sender?.split('@')[0] || 'Tidak diketahui'
+    const maskedName = maskName(senderName)
+    const senderNum = m.sender?.split('@')[0] || ''
+    const maskedNum = maskNumber(senderNum)
 
-    const caption = `*Message Info 🌻*
+    let groupSubject = 'Unknown Group'
+    let groupId = m.chat
+    try {
+      const metadata = await sock.groupMetadata?.(m.chat) || await sock.groupGet?.(m.chat) || null
+      if (metadata) {
+        groupSubject = metadata.subject || metadata.name || groupSubject
+        groupId = metadata.id || groupId
+      } else if (m.isGroup && m.pushName && m.chat) {
+        groupId = m.chat
+      }
+    } catch (e) {
+  }
 
-- 📛 Nama pengirim: ${senderName}
-- 📱 Nomor pengirim: ${senderNum}
-- 💬 Pesan: *${text}*
+    const waktu = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
 
-© ${global.namaBot}`
+    const captionToChannel = `*Message Info ⭐*
+    
+- 🏷️Dari Group: *${groupSubject}*
+- 🔖 Group ID: ${groupId}
+- 📛 Nama pengirim: ${maskedName}
+- 📱 Nomor pengirim: ${maskedNum}
+- 🕒 Waktu (WIB): ${waktu}
 
-    await sock.sendMessage(ch, { image: buffer, caption })
+> 💬 Pesan:\n${text}`
 
-    await sock.sendMessage(m.chat, { text: 'Pesan berhasil di kirim!' }, { quoted: m })
+    await sock.sendMessage(ch, {   
+    text: captionToChannel,   
+    contextInfo: {   
+    mentionedJid: [m.sender],   
+    isForwarded: true,   
+    externalAdReply: {   
+    title:`🎐 request dari | ${senderName}`,    
+    body: `© ${global.namaBot}`,
+    thumbnailUrl: buffer,
+    sourceUrl: ``,
+    mediaType: 1,
+    renderLargerThumbnail: true
+   }
+ }
+}, { quoted: null });
+
+    const confirmText = `Request berhasil dikirim ke saluran`
+    await sock.sendMessage(m.chat, { text: confirmText }, { quoted: m })
 
   } catch (err) {
     console.error('ustadz plugin error:', err)
